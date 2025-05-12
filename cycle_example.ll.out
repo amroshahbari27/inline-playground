@@ -1,0 +1,40 @@
+; ModuleID = 'cycle_example.ll'
+source_filename = "cycle_test.ll"
+
+define i32 @A(i32 %x) {
+entry:
+  %b_val.i.i.i = call i32 @B(i32 %x)
+  %res.i.i.i = add i32 %b_val.i.i.i, 1
+  %res.i.i = add i32 %res.i.i.i, 3
+  %res.i = add i32 %res.i.i, 2
+  %res = add i32 %res.i, 1
+  ret i32 %res
+}
+
+define i32 @B(i32 %x) {
+entry:
+  %b_val.i.i = call i32 @B(i32 %x)
+  %res.i.i = add i32 %b_val.i.i, 1
+  %res.i = add i32 %res.i.i, 3
+  %res = add i32 %res.i, 2
+  ret i32 %res
+}
+
+define i32 @C(i32 %x) {
+entry:
+  %b_val.i = call i32 @B(i32 %x)
+  %res.i = add i32 %b_val.i, 1
+  %res = add i32 %res.i, 3
+  ret i32 %res
+}
+
+define i32 @main() {
+entry:
+  %x = add i32 0, 10
+  %b_val.i.i.i.i = call i32 @B(i32 %x)
+  %res.i.i.i.i = add i32 %b_val.i.i.i.i, 1
+  %res.i.i.i = add i32 %res.i.i.i.i, 3
+  %res.i.i = add i32 %res.i.i.i, 2
+  %res.i = add i32 %res.i.i, 1
+  ret i32 %res.i
+}
