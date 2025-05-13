@@ -8,6 +8,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include <iostream>
+#include <stack>
 
 using namespace llvm;
 
@@ -26,54 +27,66 @@ bool InlineFun(CallBase *call) {
   }
 
   Function *Callee = call->getCalledFunction();
-  errs() << "inlining call to function: " << Callee->getName()
-         << " inside " << call->getFunction()->getName() << "\n";
+  errs() << "inlining call to function: " << Callee->getName() << " inside "
+         << call->getFunction()->getName() << "\n";
   InlineFunctionInfo IFI;
   bool Success = InlineFunction(*call, IFI).isSuccess();
-  errs() << (Success ? "inlining successful\n"
-                     : "inlining failed\n");
+  errs() << (Success ? "inlining successful\n" : "inlining failed\n");
   return Success;
 }
 
 // Bottom-up recursive inlining with cycle-safe handling
-void RecursiveInline(Function *F,
+void IterativeInline(Function *F,
                      SmallPtrSetImpl<Function *> &VisitedFunctions) {
-  if (VisitedFunctions.contains(F)) {
-    errs() << "already visited - existing function: " << F->getName() << "\n";
-    return;
-  }
 
-  errs() << "entering function: " << F->getName() << "\n";
+  std::stack<CallBase *> CallsStack;
   VisitedFunctions.insert(F);
 
-  std::vector<CallBase *> Calls;
+  // Start with the top function, initializing the stack with its calls
   for (auto &BB : *F) {
     for (auto &I : BB) {
       if (auto *CB = dyn_cast<CallBase>(&I)) {
-
         Function *Callee = CB->getCalledFunction();
         if (!Callee || Callee->isDeclaration())
           continue;
 
-        // Visit callee first if not visited yet (bottom-up)
+        // If the callee is not visited yet, push it onto the stack
         if (!VisitedFunctions.contains(Callee)) {
-          RecursiveInline(Callee, VisitedFunctions);
+          CallsStack.push(CB);
         }
-
-        Calls.push_back(CB);
       }
     }
   }
 
-  for (CallBase *CB : Calls) {
-    InlineFun(CB);
+  while (!CallsStack.empty()) {
+    CallBase *CB = CallsStack.top();
+
+    // Check if the callee is already visited, then inline it, and pop the stack
+    Function *Callee = CB->getCalledFunction();
+    if (VisitedFunctions.contains(Callee)) {
+      InlineFun(CB);
+      CallsStack.pop();
+      continue;
+    }
+    // If not, visit the callee and push its calls onto the stack, keeping the
+    // current call in the stack
+    VisitedFunctions.insert(Callee);
+    for (auto &BB : *Callee) {
+      for (auto &I : BB) {
+        if (auto *CB = dyn_cast<CallBase>(&I)) {
+          Function *Callee = CB->getCalledFunction();
+          if (!Callee || Callee->isDeclaration())
+            continue;
+          CallsStack.push(CB);
+        }
+      }
+    }
   }
 }
 
 int main(int argc, char **argv) {
   if (argc != 3) {
-    errs() << "usage: " << argv[0]
-           << " <input.ll> <top_function_name>\n";
+    errs() << "usage: " << argv[0] << " <input.ll> <top_function_name>\n";
     return 1;
   }
 
@@ -92,11 +105,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  errs() << "starting recursive inlining from: " << Top->getName()
-         << "\n";
+  errs() << "starting recursive inlining from: " << Top->getName() << "\n";
 
   SmallPtrSet<Function *, 32> VisitedFunctions;
-  RecursiveInline(Top, VisitedFunctions);
+  IterativeInline(Top, VisitedFunctions);
 
   errs() << "final module after inlining:\n";
   M->print(outs(), nullptr);

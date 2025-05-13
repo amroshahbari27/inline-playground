@@ -2,10 +2,6 @@
 [+] Build complete.
 [*] Running inliner on cycle_example.ll (starting from main)...
 starting recursive inlining from: main
-entering function: main
-entering function: A
-entering function: B
-entering function: C
 inlining call to function: A inside C
 inlining successful
 inlining call to function: C inside B

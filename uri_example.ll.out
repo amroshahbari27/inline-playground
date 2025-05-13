@@ -25,11 +25,11 @@ entry:
 define i32 @A(i32 %x) {
 entry:
   %ret.i.i.i = add i32 %x, 1
-  %ret.i.i = add i32 %ret.i.i.i, 2
-  %ret.i = add i32 %ret.i.i, 3
-  %ret.i.i1 = add i32 %x, 1
-  %ret.i2 = add i32 %ret.i.i1, 2
-  %ret = add i32 %ret.i, %ret.i2
+  %ret.i.i1 = add i32 %ret.i.i.i, 2
+  %ret.i2 = add i32 %ret.i.i1, 3
+  %ret.i.i = add i32 %x, 1
+  %ret.i = add i32 %ret.i.i, 2
+  %ret = add i32 %ret.i2, %ret.i
   ret i32 %ret
 }
 
